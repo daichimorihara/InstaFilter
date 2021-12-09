@@ -11,12 +11,16 @@ import CoreImage.CIFilterBuiltins
 
 struct ContentView: View {
     @State private var image: Image?
-    @State private var filterIntensity = 0.5
+    @State private var filterIntensity = 0.0
+    @State private var filterRadius = 0.0
+    @State private var filterScale = 0.0
     @State private var showingPicker = false
     @State private var inputImage: UIImage?
     @State private var currentFIlter: CIFilter = CIFilter.sepiaTone()
     @State private var showingFilterSheet = false
     @State private var processedImage: UIImage?
+    @State private var currentFilters: [CIFilter]?
+    @State private var showingSavingAlert = false
     let context = CIContext()
     
     var body: some View {
@@ -27,7 +31,7 @@ struct ContentView: View {
                         .fill(Color.secondary)
                     Text("Tap to select a picture")
                         .foregroundColor(.white)
-                        .font(.system(size: 40))
+                        .font(.system(size: 30))
                     image?
                         .resizable()
                         .scaledToFit()
@@ -37,7 +41,10 @@ struct ContentView: View {
                     showingPicker = true
                 }
                 HStack {
-                    Text("Intensity")
+                    ZStack {
+                        Text("Intensity")
+                    }
+                    .foregroundColor(currentFIlter.inputKeys.contains(kCIInputIntensityKey) ? Color.primary : Color.secondary)
                     Slider(value: $filterIntensity)
                         .onChange(of: filterIntensity) { _ in applyProcessing() }
                 }
@@ -46,29 +53,39 @@ struct ContentView: View {
                 
                 
                 HStack {
-                    Text("Radius")
-                    Slider(value: $filterIntensity)
-                        .onChange(of: filterIntensity) { _ in applyProcessing() }
+                    ZStack {
+                        Text("Intensity").opacity(0)
+                        Text("Radius")
+                    }
+                    .foregroundColor(currentFIlter.inputKeys.contains(kCIInputRadiusKey) ? Color.primary : Color.secondary)
+                    
+                    Slider(value: $filterRadius)
+                        .onChange(of: filterRadius) { _ in applyProcessing() }
                 }
                 .disabled(!currentFIlter.inputKeys.contains(kCIInputRadiusKey))
-                
+
                 HStack {
-                    Text("Scale")
-                    Slider(value: $filterIntensity)
-                        .onChange(of: filterIntensity) { _ in applyProcessing() }
+                    ZStack {
+                        Text("Intensity").opacity(0)
+                        Text("Scale")
+                    }
+                    .foregroundColor(currentFIlter.inputKeys.contains(kCIInputScaleKey) ? Color.primary : Color.secondary)
+                    
+                    Slider(value: $filterScale)
+                        .onChange(of: filterScale) { _ in applyProcessing() }
                 }
                 .padding(.bottom)
                 .disabled(!currentFIlter.inputKeys.contains(kCIInputScaleKey))
-
-
                 
                 HStack {
                     Button("Change Filter") {
                         showingFilterSheet = true
                     }
                     Spacer()
-                    Button("Save", action: save)
-                        .disabled(image == nil)
+                    Button("Save") {
+                        save()
+                    }
+                    .disabled(image == nil)
                 }
                 
             }
@@ -87,7 +104,14 @@ struct ContentView: View {
                 Button("Vignette") { setFilter(CIFilter.vignette()) }
                 Button("Cancel", role: .cancel) {}
             }
-
+            .alert("This picture is saved.", isPresented: $showingSavingAlert) {
+                Button("OK") {}
+            }
+            .onChange(of: currentFIlter) { _ in
+                filterIntensity = 0.0
+                filterRadius = 0.0
+                filterScale = 0.0
+            }
             .onChange(of: inputImage) { _ in loadImage()}
         }
     }
@@ -111,8 +135,8 @@ struct ContentView: View {
     func applyProcessing() {
         let inputKeys = currentFIlter.inputKeys
         if inputKeys.contains(kCIInputIntensityKey) { currentFIlter.setValue(filterIntensity, forKey: kCIInputIntensityKey) }
-        if inputKeys.contains(kCIInputRadiusKey) { currentFIlter.setValue(filterIntensity*200, forKey: kCIInputRadiusKey)}
-        if inputKeys.contains(kCIInputScaleKey) { currentFIlter.setValue(filterIntensity*10, forKey: kCIInputScaleKey)}
+        if inputKeys.contains(kCIInputRadiusKey) { currentFIlter.setValue(filterRadius*200, forKey: kCIInputRadiusKey)}
+        if inputKeys.contains(kCIInputScaleKey) { currentFIlter.setValue(filterScale*100, forKey: kCIInputScaleKey)}
         
         guard let outputImage = currentFIlter.outputImage else { return }
         if let cgimg = context.createCGImage(outputImage, from: outputImage.extent) {
@@ -125,6 +149,7 @@ struct ContentView: View {
         currentFIlter = filter
         loadImage()
     }
+
 }
 
 struct ContentView_Previews: PreviewProvider {
